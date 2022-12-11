@@ -501,7 +501,8 @@ class TrainerModule:
           return kl
         # Function to calculate the classification loss and accuracy for a model
         def calculate_loss(params, params_logvar, rng_key, batch_stats, batch, train):
-            imgs, labels = batch
+            batch_labeled, batch_unlabeled = batch
+            imgs, labels = batch_labeled
 
             if self.objective_hparams["stochastic"]:  # EDIT
                 params = sample_parameters(params, params_logvar, rng_key)  # EDIT
@@ -662,10 +663,8 @@ class TrainerModule:
         # for batch in train_loader:
         for batch in train_loader:
         # for batch in tqdm(train_loader, desc='Training', leave=False)
-            print(type(batch))
-            print(type(batch[0]))
             batch_labeled, batch_unlabeled = self.make_ssl_batch(batch)
-            self.state, loss, acc = self.train_step(self.state, batch_labeled, rng_key)  # EDIT
+            self.state, loss, acc = self.train_step(self.state, (batch_labeled, batch_unlabeled), rng_key)  # EDIT
             metrics['loss'].append(loss)
             metrics['acc'].append(acc)
         for key in metrics:
