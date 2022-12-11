@@ -1,0 +1,33 @@
+name: mur_is_fun
+channels:
+  - defaults
+dependencies:
+  - python=3.9.13
+  - pip=22.1.2
+  - pip:
+    - numpy
+    - matplotlib
+    - seaborn
+    - dm-tree
+    - tqdm
+    - flatten-dict
+    - jax
+    - flax
+    #- tensorflow # or tensorflow-macos if you're on mac-os
+    #- tensorflow-metal # for mac-os
+    - tensorflow-probability
+    - torch
+    - torchvision
+    - pytorch-lightning
+  
+
+
+# ## Environment installation
+#1. Make sure you have conda installed in your system.
+#2. Then, get the conda_env.yml file, and from the same directory, run conda env create -f conda_env.yml.
+
+# ## Environment update (suppose you want to add a library called my_library)
+#1. add my_library to the list of pip dependencies above
+#2. deactivate the environment by running "conda deactivate"
+#3. update the environment by running "conda env update -f conda_env.yaml"
+#4. Wait end of update and run the enironment with "conda activate mur_is_fun"
