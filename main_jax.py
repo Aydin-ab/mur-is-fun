@@ -356,6 +356,10 @@ class TrainerModule:
         self.optimizer_name = optimizer_name
         self.optimizer_hparams = optimizer_hparams
         self.objective_hparams = objective_hparams
+        # This hashmap will help to build a SSL dataset from CIFAR-10
+        # It will build a balanced SSL dataset following the proportion of labeled dataset = self.balance
+        self.balance_ssl = 0.4
+        self.ssl_hashmap_helper = {'num_labeled' : 0, 'num_unlabeled' : 0} 
         self.seed = seed
         # Create empty model. Note: no parameters yet
         self.model = self.model_class(**self.model_hparams)
@@ -612,13 +616,56 @@ class TrainerModule:
                 self.logger.flush()
                 print(f"\nEvaluation Accuracy: {eval_acc*100:.2f}")  # EDIT
 
+    def make_ssl_batch(self, batch) :
+        imgs, labels = batch
+        batch_labeled = ([], []) # empty tuple : imgs, labels
+        batch_unlabeled = [] # Empty list : imgs
+        for img, label in zip(imgs, labels) :
+            hash_val = hash(str(img))
+            if hash_val in self.ssl_hashmap_helper :
+                # If the img's hash key is already registered, 
+                # we check its value to determine if it's a registered labaled or unlabaled dataset
+                if self.ssl_hashmap_helper[hash_val] == True : 
+                    # If True, it means this img is part of the labeled dataset so its label remains
+                    batch_labeled[0].append(img)
+                    batch_labeled[1].append(label)
+                else :
+                    # If false, it means the img is part of the unlabeled dataset
+                    batch_unlabeled.append(img)
+            else :
+                # If the img's hash key is not registered, we register it 
+                # by balancing the proportion of labeled vs unlabeled dataset
+                num_labeled = self.ssl_hashmap_helper['num_labeled']
+                num_unlabeled = self.ssl_hashmap_helper['num_unlabeled']
+                total = num_labeled + num_unlabeled
+                balance = self.balance_ssl # Proportion of num_labeled over total number of data
+                if num_labeled == 0 or num_labeled / total < balance :
+                    # We add in the labeled dataset
+                    self.ssl_hashmap_helper[hash_val] = True
+                    batch_labeled[0].append(img)
+                    batch_labeled[1].append(label)
+                    self.ssl_hashmap_helper['num_labeled'] += 1
+
+                else :
+                    self.ssl_hashmap_helper[hash_val] = False
+                    batch_unlabeled.append(img)
+                    self.ssl_hashmap_helper['num_unlabeled'] += 1
+        batch_labeled = (np.array(batch_labeled[0]), np.array(batch_labeled[1]))
+        return batch_labeled, batch_unlabeled
+
+
+
+
     def train_epoch(self, train_loader, epoch, rng_key):  # EDIT
         # Train model for one epoch, and log avg loss and accuracy
         metrics = defaultdict(list)
         # for batch in train_loader:
         for batch in train_loader:
-        # for batch in tqdm(train_loader, desc='Training', leave=False):
-            self.state, loss, acc = self.train_step(self.state, batch, rng_key)  # EDIT
+        # for batch in tqdm(train_loader, desc='Training', leave=False)
+            print(type(batch))
+            print(type(batch[0]))
+            batch_labeled, batch_unlabeled = self.make_ssl_batch(batch)
+            self.state, loss, acc = self.train_step(self.state, batch_labeled, rng_key)  # EDIT
             metrics['loss'].append(loss)
             metrics['acc'].append(acc)
         for key in metrics:
